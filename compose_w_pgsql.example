@@ -1,0 +1,30 @@
+services:
+  fastapi:
+    env_file: ".env"
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    depends_on:
+      - pgsql
+    links:
+      - pgsql
+  pgsql:
+    image: postgres:16
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=
+      - POSTGRES_USER=
+      - POSTGRES_DB=
+      - POSTGRES_HOST_AUTH_METHOD=
+    # networks:
+    #   - "docker_pgsql"
+    volumes:
+      - pgsql_data:/var/lib/postgresql/data/
+
+# networks:
+#   docker_pgsql:
+volumes:
+  pgsql_data:

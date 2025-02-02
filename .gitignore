@@ -1,0 +1,7 @@
+**__pycache__**
+.env
+docker-compose.yaml
+.venv/
+.idea/
+.**_cache/
+.zed
