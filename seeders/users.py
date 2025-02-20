@@ -4,6 +4,7 @@ from models.User import User
 from models.Role import Role
 from migrations.factories.UserFactory import UserFactory
 from seeders.roles import initial_role
+from settings import SEED_EMAIL, SEED_PASS
 
 
 def initial_user(db: Session, is_commit: bool = True) -> User:
@@ -12,19 +13,19 @@ def initial_user(db: Session, is_commit: bool = True) -> User:
         initial_role(db=db, is_commit=is_commit)
     cek_user = (
         db.query(User)
-        .filter(User.email == "thoriq@admin.py")
+        .filter(User.email == SEED_EMAIL)
         .first()
     )
     if cek_user is not None:
         cek_user.nama = "Admin"
-        cek_user.email = "thoriq@admin.py"
-        cek_user.password = generate_hash_password("p45Ic!F")
+        cek_user.email = SEED_EMAIL
+        cek_user.password = generate_hash_password(SEED_PASS)
         cek_user.userRole = role
     else:
         user = UserFactory.create(
             nama="Admin",
-            email="thoriq@admin.py",
-            password=generate_hash_password("p45Ic!F"),
+            email=SEED_EMAIL,
+            password=generate_hash_password(SEED_PASS),
             userRole=role,
         )
         db.add(user)

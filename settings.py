@@ -23,3 +23,6 @@ ALGORITHM = os.environ.get("ALGORITHM", "HS256")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
 
 TZ = os.environ.get("TIMEZONE", "Asia/Jakarta")
+
+SEED_EMAIL = os.environ.get("SEED_EMAIL")
+SEED_PASS = os.environ.get("SEED_PASS")
