@@ -18,8 +18,8 @@ http://103.127.138.36:8000/docs
 ## Demo
 Data yang diseeder dan dapat digunakan adalah:
 ### User
-- Username (email): admin@absensi.py
-- Password: 12qwaszx
+- Username (email): 
+- Password: 
 ### Role
 - Admin
 - Operator
