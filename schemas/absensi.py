@@ -89,6 +89,10 @@ class CreateAbsensiMasukRequest(BaseModel):
     lokasi_masuk: str
     keterangan: Optional[str] = None
 
+class CheckKoordinatRequest(BaseModel):
+    longitude: float
+    latitude: float
+
 class CreateAbsensiMasukResponse(BaseModel):
     id: int
     tanggal_absen: date

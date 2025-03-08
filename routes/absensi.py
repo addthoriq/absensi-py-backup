@@ -1,4 +1,5 @@
 from typing import Optional
+from math import radians, sin, cos, asin, sqrt
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends
 from common.security import oauth2_scheme, get_user_from_jwt_token
@@ -13,6 +14,7 @@ from common.responses import (
     Unauthorized
 )
 from schemas.absensi import (
+    CheckKoordinatRequest,
     DetailAbsensiResponse,
     PaginateAbsensiAdminResponse,
     PaginateAbsensiUserResponse,
@@ -27,6 +29,7 @@ from schemas.common import (
     ForbiddenResponse,
     InternalServerErrorResponse
 )
+from settings import LONG_OF_CENTER, LAT_OF_CENTER, CHECK_RADIUS
 
 router = APIRouter(prefix="/absensi", tags=["Absensi"])
 MSG_UNAUTHORIZED="Invalid/Expire Credentials"
@@ -308,6 +311,63 @@ async def absen_masuk(
         import traceback
         traceback.print_exc()
         return common_response(InternalServerError(error=str(e)))
+
+@router.post(
+    "/check-koordinat",
+    responses={
+        "200": {"model": bool},
+        "400": {"model": BadRequestResponse},
+        "401": {"model": UnauthorizedResponse},
+        "403": {"model": ForbiddenResponse},
+        "500": {"model": InternalServerErrorResponse},
+    }
+)
+async def check_koordinat(
+    # req:
+    req: CheckKoordinatRequest,
+    db: Session = Depends(get_db_sync),
+    token: str = Depends(oauth2_scheme)
+):
+    try:
+        user = get_user_from_jwt_token(db, token)
+        if user is None:
+            return common_response(Unauthorized(custom_response=MSG_UNAUTHORIZED))
+
+        check_radius = haversine(LONG_OF_CENTER, LAT_OF_CENTER, req.longitude, req.latitude)
+        area = CHECK_RADIUS # in kilometer
+        if check_radius <= area:
+            return common_response(
+                Ok(
+                    data=True
+                )
+            )
+        else:
+            return common_response(
+                Ok(
+                    data=False
+                )
+            )
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return common_response(InternalServerError(error=str(e)))
+
+def haversine(lon1, lat1, lon2, lat2):
+    """
+    Calculate the great circle distance between two points
+    on the earth (specified in decimal degrees)
+    """
+    # convert decimal degrees to radians
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+    # haversine formula
+    dlon = lon2 - lon1
+    dlat = lat2 - lat1
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a))
+    r = 6371 # Radius of earth in kilometers. Use 3956 for miles
+    return c * r
 
 @router.put(
     "/keluar/{id}/",

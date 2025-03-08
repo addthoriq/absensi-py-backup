@@ -26,3 +26,8 @@ TZ = os.environ.get("TIMEZONE", "Asia/Jakarta")
 
 SEED_EMAIL = os.environ.get("SEED_EMAIL")
 SEED_PASS = os.environ.get("SEED_PASS")
+
+LAT_OF_CENTER = float(os.environ.get("LAT_OF_CENTER"))
+LONG_OF_CENTER = float(os.environ.get("LONG_OF_CENTER"))
+# Value dalam bentuk Kilometer
+CHECK_RADIUS= float(os.environ.get("CHECK_RADIUS", 5.00))
