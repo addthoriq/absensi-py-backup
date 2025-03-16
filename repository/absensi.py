@@ -1,12 +1,17 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, and_
 from models.Absensi import Absensi
+from models.Shift import Shift
 from models.User import User
 from math import ceil
 from typing import Tuple, List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
-from settings import TZ
+from settings import (
+    TZ,
+    MAX_MINUTE_ABSEN_IN,
+    MIN_MINUTE_ABSEN_IN
+)
 
 def paginate_list_only_user(
     db: Session,
@@ -152,16 +157,17 @@ def create_masuk(
     db: Session,
     lokasi_masuk: str,
     userId: User,
+    shift: Shift,
     keterangan: Optional[str] = None,
     is_commit: bool = True
 ) -> Absensi:
     new_data = Absensi(
+        shift_id=shift.id,
         tanggal_absen=datetime.today().date(),
         jam_masuk=datetime.now().astimezone(tz=pytz.timezone(TZ)).strftime("%H:%M:%S"),
         keterangan=keterangan,
         lokasi_masuk=lokasi_masuk,
         absen_user=userId,
-
     )
     db.add(new_data)
     if is_commit:
@@ -171,12 +177,14 @@ def create_masuk(
 def update_exit(
     db: Session,
     id: int,
+    shift: Shift,
     lokasi_keluar: str,
     is_commit: bool = True
 ) -> Absensi:
     query = select(Absensi).filter(
         Absensi.id == id,
-        Absensi.jam_keluar == None #NOQA
+        Absensi.jam_keluar == None, #NOQA
+        Absensi.shift_id == shift.id
     )
     data = db.execute(query).scalar()
     if data is None:
@@ -248,3 +256,11 @@ def export_excel_user(
     stmt = stmt.order_by(Absensi.tanggal_absen.desc())
     get_list = db.execute(stmt).scalars().all()
     return get_list
+
+
+def get_absen_by_user_shift(db: Session, user: User, shift: Shift) -> Optional[Absensi]:
+    attendance = db.query(Absensi).filter(
+        Absensi.user_id == user.id,
+        Absensi.shift_id == shift.id
+    ).first()
+    return attendance

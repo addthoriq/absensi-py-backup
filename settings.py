@@ -30,4 +30,7 @@ SEED_PASS = os.environ.get("SEED_PASS")
 LAT_OF_CENTER = float(os.environ.get("LAT_OF_CENTER"))
 LONG_OF_CENTER = float(os.environ.get("LONG_OF_CENTER"))
 # Value dalam bentuk Kilometer
-CHECK_RADIUS= float(os.environ.get("CHECK_RADIUS", 5.00))
+CHECK_KILOMETER_RADIUS= float(os.environ.get("CHECK_KILOMETER_RADIUS", 5.00))
+
+MIN_MINUTE_ABSEN_IN = int(os.environ.get("MIN_MINUTE_ABSEN_IN", 60))
+MAX_MINUTE_ABSEN_IN = int(os.environ.get("MAX_MINUTE_ABSEN_IN", 120))

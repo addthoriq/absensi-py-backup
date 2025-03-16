@@ -93,6 +93,16 @@ class CheckKoordinatRequest(BaseModel):
     longitude: float
     latitude: float
 
+class CheckShift(BaseModel):
+    bisa_absen_masuk: bool
+    bisa_absen_keluar: bool
+    class ShiftDetail(BaseModel):
+        id: str
+        nama_shift: str
+        jam_masuk: str
+        jam_keluar: str
+    shift: ShiftDetail
+
 class CreateAbsensiMasukResponse(BaseModel):
     id: int
     tanggal_absen: date

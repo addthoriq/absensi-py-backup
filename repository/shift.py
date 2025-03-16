@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import select, func, and_, insert, delete as sql_delete
 from models.Shift import Shift
-from models.User import user_shift
+from models.User import user_shift, User
 from typing import Optional, List, Tuple
 from datetime import datetime
 from math import ceil
@@ -40,6 +40,13 @@ def list_paginate(
     num_data = db.execute(stmt_count).scalar()
     num_page = ceil(num_data / limit)
     return get_list, num_data, num_page
+
+def get_shift_by_user(
+    db: Session,
+    user: User
+):
+    shifts = user.userShift if user else []
+    return shifts
 
 def get_by_id(
     db: Session,

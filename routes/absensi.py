@@ -1,10 +1,16 @@
 from typing import Optional
+from datetime import datetime, timedelta
 from math import radians, sin, cos, asin, sqrt
 from sqlalchemy.orm import Session
 from fastapi import APIRouter, Depends
 from common.security import oauth2_scheme, get_user_from_jwt_token
 from models import get_db_sync
-from repository import absensi as absensi_repo
+from models.User import User
+from models.Shift import Shift
+from repository import (
+    absensi as absensi_repo,
+    shift as shift_repo
+)
 from common.responses import (
     common_response,
     Ok,
@@ -22,6 +28,7 @@ from schemas.absensi import (
     CreateAbsensiMasukResponse,
     CreateAbsensiKeluarRequest,
     CreateAbsensiKeluarResponse,
+    CheckShift
 )
 from schemas.common import (
     BadRequestResponse,
@@ -29,7 +36,13 @@ from schemas.common import (
     ForbiddenResponse,
     InternalServerErrorResponse
 )
-from settings import LONG_OF_CENTER, LAT_OF_CENTER, CHECK_RADIUS
+from settings import (
+    LONG_OF_CENTER,
+    LAT_OF_CENTER,
+    CHECK_KILOMETER_RADIUS,
+    MIN_MINUTE_ABSEN_IN,
+    MAX_MINUTE_ABSEN_IN
+)
 
 router = APIRouter(prefix="/absensi", tags=["Absensi"])
 MSG_UNAUTHORIZED="Invalid/Expire Credentials"
@@ -182,7 +195,7 @@ async def laporan_absensi_only_admin(
         import traceback
         traceback.print_exc()
         return common_response(InternalServerError(error=str(e)))
-    
+
 @router.get(
     "/laporan/{id}/",
     responses={
@@ -270,12 +283,20 @@ async def absen_masuk(
         if check_jam_keluar is not None:
             return common_response(BadRequest(custom_response={"message": "Anda belum melakukan Check-Out!"}))
 
+        # jam_sekarang = datetime.now().time()
+        shift, can_check_in, _ = check_shift(db=db, user=user)
+
+        if not can_check_in:
+            return common_response(BadRequest(custom_response={"message": "Anda belum bisa Absen Masuk sekarang"}))
+
         data = absensi_repo.create_masuk(
             db=db,
             keterangan=req.keterangan,
             userId=user,
-            lokasi_masuk=req.lokasi_masuk
+            lokasi_masuk=req.lokasi_masuk,
+            shift=shift
         )
+
         return common_response(
             Ok(
                 data={
@@ -291,7 +312,7 @@ async def absen_masuk(
                         "jabatan": {
                             "id": data.absen_user.userRole.id,
                             "nama_jabatan": data.absen_user.userRole.jabatan
-                        } if data.absen_user.userRole else None, 
+                        } if data.absen_user.userRole else None,
                         "shift": [
                             {
                                 "id": val.id,
@@ -311,6 +332,96 @@ async def absen_masuk(
         import traceback
         traceback.print_exc()
         return common_response(InternalServerError(error=str(e)))
+
+def check_shift(db: Session, user: User):
+        shift = get_active_shift(db, user)
+
+        # if not shift:
+        #     return {"can_check_in": False, "can_check_out": False, "shift_id": None}
+
+        now = datetime.now()
+        today = now.date()
+        shift_start = datetime.combine(today, shift.jam_mulai)
+        shift_end = datetime.combine(today, shift.jam_akhir)
+
+        can_check_in = shift_start - timedelta(minutes=MIN_MINUTE_ABSEN_IN) <= now <= shift_start
+        data = absensi_repo.get_absen_by_user_shift(db=db, user=user, shift=shift)
+        can_check_out = shift_end + timedelta(minutes=MAX_MINUTE_ABSEN_IN) <= now <= shift_end and (not data or not data.jam_keluar)
+        return shift, can_check_in, can_check_out
+
+@router.get(
+    "/check-shift",
+    responses={
+        "200": {"model": CheckShift},
+        "400": {"model": BadRequestResponse},
+        "401": {"model": UnauthorizedResponse},
+        "403": {"model": ForbiddenResponse},
+        "500": {"model": InternalServerErrorResponse},
+    }
+)
+async def check_absen_shift(
+    db: Session = Depends(get_db_sync),
+    token: str = Depends(oauth2_scheme)
+):
+    try:
+        user = get_user_from_jwt_token(db, token)
+        if user is None:
+            return common_response(Unauthorized(custom_response=MSG_UNAUTHORIZED))
+
+        """
+        Endpoint untuk mengecek apakah user bisa melakukan check-in atau check-out.
+        """
+        shift = get_active_shift(db, user)
+
+        if not shift:
+            return BadRequest(custom_response={"message": "Shift sudah berakhir"})
+
+        now = datetime.now()
+        today = now.date()
+        shift_start = datetime.combine(today, shift.jam_mulai)
+        shift_end = datetime.combine(today, shift.jam_akhir)
+
+        can_check_in = shift_start - timedelta(minutes=MIN_MINUTE_ABSEN_IN) <= now <= shift_start
+        data = absensi_repo.get_absen_by_user_shift(db=db, user=user, shift=shift)
+        can_check_out = shift_end + timedelta(minutes=MAX_MINUTE_ABSEN_IN) >= now >= shift_end and (not data or not data.jam_keluar)
+
+        return common_response(
+            Ok(
+                data={
+                    "shift": {
+                        "id": shift.id,
+                        "nama_shift": shift.nama_shift,
+                        "jam_mulai": str(shift.jam_mulai),
+                        "jam_akhir": str(shift.jam_akhir),
+                    },
+                    "bisa_absen_masuk": can_check_in,
+                    "bisa_absen_keluar": can_check_out
+                }
+            )
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return common_response(InternalServerError(error=str(e)))
+
+
+def get_active_shift(db: Session, user: User) -> Optional[Shift]:
+    """
+    Mencari shift yang sedang aktif berdasarkan waktu saat ini.
+    """
+    now = datetime.now()
+    today = now.date()
+
+    shifts = shift_repo.get_shift_by_user(db=db, user=user)
+
+    for shift in shifts:
+        shift_start = datetime.combine(today, shift.jam_mulai)
+        shift_end = datetime.combine(today, shift.jam_akhir)
+
+        if shift_start - timedelta(minutes=MIN_MINUTE_ABSEN_IN) <= now <= shift_end + timedelta(minutes=MAX_MINUTE_ABSEN_IN):
+            return shift
+
+    return None  # Tidak ada shift yang valid
 
 @router.post(
     "/check-koordinat",
@@ -334,7 +445,7 @@ async def check_koordinat(
             return common_response(Unauthorized(custom_response=MSG_UNAUTHORIZED))
 
         check_radius = haversine(LONG_OF_CENTER, LAT_OF_CENTER, req.longitude, req.latitude)
-        area = CHECK_RADIUS # in kilometer
+        area = CHECK_KILOMETER_RADIUS # in kilometer
         if check_radius <= area:
             return common_response(
                 Ok(
@@ -392,7 +503,12 @@ async def absen_keluar(
         data = absensi_repo.get_by_id(db, id)
         if data is None:
             return common_response(NotFound())
-        data = absensi_repo.update_exit(db=db, id=id, lokasi_keluar=req.lokasi_keluar)
+        shift, _, can_check_out = check_shift(db=db, user=user)
+
+        if can_check_out:
+            return common_response(BadRequest(custom_response={"message": "Anda belum bisa Absen Keluar sekarang"}))
+
+        data = absensi_repo.update_exit(db=db, id=id, shift=shift, lokasi_keluar=req.lokasi_keluar)
         return common_response(
             Ok(
                 data={
