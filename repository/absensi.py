@@ -157,12 +157,12 @@ def create_masuk(
     db: Session,
     lokasi_masuk: str,
     userId: User,
-    shift: Shift,
+    # shift: Shift,
     keterangan: Optional[str] = None,
     is_commit: bool = True
 ) -> Absensi:
     new_data = Absensi(
-        shift_id=shift.id,
+        # shift_id=shift.id,
         tanggal_absen=datetime.today().date(),
         jam_masuk=datetime.now().astimezone(tz=pytz.timezone(TZ)).strftime("%H:%M:%S"),
         keterangan=keterangan,
@@ -177,14 +177,14 @@ def create_masuk(
 def update_exit(
     db: Session,
     id: int,
-    shift: Shift,
+    # shift: Shift,
     lokasi_keluar: str,
     is_commit: bool = True
 ) -> Absensi:
     query = select(Absensi).filter(
         Absensi.id == id,
         Absensi.jam_keluar == None, #NOQA
-        Absensi.shift_id == shift.id
+        # Absensi.shift_id == shift.id
     )
     data = db.execute(query).scalar()
     if data is None:

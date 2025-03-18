@@ -284,17 +284,17 @@ async def absen_masuk(
             return common_response(BadRequest(custom_response={"message": "Anda belum melakukan Check-Out!"}))
 
         # jam_sekarang = datetime.now().time()
-        shift, can_check_in, _ = check_shift(db=db, user=user)
+        # shift, can_check_in, _ = check_shift(db=db, user=user)
 
-        if not can_check_in:
-            return common_response(BadRequest(custom_response={"message": "Anda belum bisa Absen Masuk sekarang"}))
+        # if not can_check_in:
+        #     return common_response(BadRequest(custom_response={"message": "Anda belum bisa Absen Masuk sekarang"}))
 
         data = absensi_repo.create_masuk(
             db=db,
             keterangan=req.keterangan,
             userId=user,
             lokasi_masuk=req.lokasi_masuk,
-            shift=shift
+            # shift=shift
         )
 
         return common_response(
@@ -503,12 +503,17 @@ async def absen_keluar(
         data = absensi_repo.get_by_id(db, id)
         if data is None:
             return common_response(NotFound())
-        shift, _, can_check_out = check_shift(db=db, user=user)
+        # shift, _, can_check_out = check_shift(db=db, user=user)
 
-        if can_check_out:
-            return common_response(BadRequest(custom_response={"message": "Anda belum bisa Absen Keluar sekarang"}))
+        # if can_check_out:
+        #     return common_response(BadRequest(custom_response={"message": "Anda belum bisa Absen Keluar sekarang"}))
 
-        data = absensi_repo.update_exit(db=db, id=id, shift=shift, lokasi_keluar=req.lokasi_keluar)
+        data = absensi_repo.update_exit(
+            db=db,
+            id=id,
+            # shift=shift,
+            lokasi_keluar=req.lokasi_keluar
+        )
         return common_response(
             Ok(
                 data={
@@ -527,16 +532,16 @@ async def absen_keluar(
                             "id": data.absen_user.userRole.id,
                             "nama_jabatan": data.absen_user.userRole.jabatan
                         },
-                        "shift": [
-                            {
-                                "id": val.id,
-                                "nama_shift": val.nama_shift,
-                                "jam_mulai": str(val.jam_mulai),
-                                "jam_akhir": str(val.jam_akhir),
-                            }
-                            for val in data.absen_user.userShift
-                        ]
-                        if data.absen_user.userShift else []
+                        # "shift": [
+                        #     {
+                        #         "id": val.id,
+                        #         "nama_shift": val.nama_shift,
+                        #         "jam_mulai": str(val.jam_mulai),
+                        #         "jam_akhir": str(val.jam_akhir),
+                        #     }
+                        #     for val in data.absen_user.userShift
+                        # ]
+                        # if data.absen_user.userShift else []
                     }
                 }
             )
